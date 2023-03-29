@@ -1,31 +1,42 @@
-const AWS = require('aws-sdk');
-
+const cloudinary = require('cloudinary').v2;
 const keys = require('../config/keys');
+
+cloudinary.config({
+  cloud_name: keys.cloudinary.cloud_name,
+  api_key: keys.cloudinary.api_key,
+  api_secret: keys.cloudinary.api_secret
+});
+
 
 exports.s3Upload = async image => {
   let imageUrl = '';
   let imageKey = '';
+  try{
 
-  if (image) {
-    const s3bucket = new AWS.S3({
-      accessKeyId: keys.aws.accessKeyId,
-      secretAccessKey: keys.aws.secretAccessKey,
-      region: keys.aws.region
-    });
+    if (image) {
 
-    const params = {
-      Bucket: keys.aws.bucketName,
-      Key: image.originalname,
-      Body: image.buffer,
-      ContentType: image.mimetype,
-      ACL: 'public-read'
-    };
+      return new Promise((resolve, reject) => {
+        const binaryImageData = Buffer.from(image.buffer);
 
-    const s3Upload = await s3bucket.upload(params).promise();
+        cloudinary.uploader.upload_stream({ 
+          resource_type: 'image', 
+          public_id: `images/${image.originalname}/${Date.now()}`,  
+        }, (error, result) => { 
+          imageKey = result.public_id;
+          imageUrl = result.secure_url;
+          resolve({ imageUrl, imageKey });
+        }).end(binaryImageData);
+      })
 
-    imageUrl = s3Upload.Location;
-    imageKey = s3Upload.key;
+      
+      
+      
+    }
+    else {
+      console.log('No image found');
+    }
   }
-
-  return { imageUrl, imageKey };
+  catch(err){
+    console.log(err);
+  }
 };
